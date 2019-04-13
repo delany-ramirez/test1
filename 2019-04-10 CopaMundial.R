@@ -6,14 +6,20 @@ partidos <- partidos_fifa_copa_mundial_procesado
 
 head(partidos)
 
+## Organización de los datos
+
 partidos <- partidos %>% 
   mutate(partido_orden = as.numeric(gsub("[()]", "", partido_orden)))
+
+## Grafico exploratorio de cantidad de goles por Copa
 
 partidos %>% 
   group_by(anio) %>% 
   summarize(num_partidos = n(), goles = sum(equipo_1_final,equipo_2_final), rate = goles/num_partidos) %>% 
   ggplot(aes(anio, rate)) +
   geom_col() + geom_smooth()
+
+## Cantidad de partidos ganados en Mundiales por País
   
 partidos %>% 
   filter(equipo_1_final != equipo_2_final) %>% 
@@ -31,8 +37,7 @@ partidos %>%
        x = "País",
        y = "Cantidad de partidos ganados") 
 
-
-
+## País con mayor cantidad de partidos ganados por Copa Mundial
 
 partidos %>% 
   filter(equipo_1_final != equipo_2_final) %>% 
@@ -52,3 +57,41 @@ partidos %>%
        caption = "Fuente: Open Public Domain Football Data",
        x = "Copa Mundial",
        y = "Cantidad de partidos ganados") 
+
+## Identificando el partido final de cada Copa
+
+max_partidos <- partidos %>% 
+  group_by(anio) %>% 
+  summarize(max_partido = max(partido_orden))
+
+## Definiendo el ganar de cada partido, este si incluye el Empate
+
+ganador_partido <- partidos %>% 
+  mutate(ganador = case_when(
+    equipo_1_final > equipo_2_final ~ equipo_1,
+    equipo_1_final < equipo_2_final ~ equipo_2,
+    TRUE ~ "Empate")) 
+
+## Seleccionando el ganador del último partido de cada copa con su número de partidos ganados
+
+campeon <- ganador_partido %>% 
+  semi_join(max_partidos, by = c("partido_orden" = "max_partido", "anio" = "anio")) %>% 
+  select(anio, ganador)
+
+## Gráfico del País campeon con relación a la cantidad de partidos ganados por Copa Mundial
+
+ganador_partido %>% 
+  count(anio, ganador, sort = TRUE) %>% 
+  right_join(campeon, by = c("anio", "ganador")) %>% 
+  filter(ganador != "Empate") %>% 
+  ggplot(aes(x = as_factor(anio), y = n, col = ganador, label = ganador)) +
+  geom_point() +
+  geom_text(angle = 45, vjust = 1) +
+  theme_minimal() + 
+  theme(legend.position = "none") +
+  labs(title = "País campeon con relación a la cantidad de partidos ganados por Copa Mundial",
+       subtitle = "DatosDeMiércoles",
+       caption = "Fuente: Open Public Domain Football Data",
+       x = "Copa Mundial",
+       y = "Cantidad de partidos ganados") 
+  
